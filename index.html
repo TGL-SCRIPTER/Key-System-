@@ -1,49 +1,328 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>TGL_SCRIPTER Key System</title>
-    <style>
-        body { background: #0f0f14; color: white; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .card { background: #1a1a24; padding: 30px; border-radius: 12px; border: 2px solid #32cd32; text-align: center; box-shadow: 0 0 20px rgba(50, 205, 50, 0.3); }
-        h1 { margin-top: 0; color: #32cd32; text-shadow: 0 0 10px rgba(50, 205, 50, 0.5); }
-        .key-box { background: #0f0f14; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: bold; margin: 20px 0; border: 1px solid #333; letter-spacing: 2px; }
-        .copy-btn { background: #32cd32; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .copy-btn:hover { background: #28a428; transform: scale(1.05); }
-        .footer { margin-top: 20px; font-size: 12px; color: #666; }
-    </style>
+<meta charset="UTF-8">
+<title>TGL_SCRIPTER Key System</title>
+<style>
+  :root{
+    --blood: #ff2c3c;
+    --ember: #ff7a1a;
+    --blood-dim: #8c0f18;
+    --ink: #ffe9e5;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:#050203;
+    font-family:'Segoe UI', sans-serif;
+    color: var(--ink);
+  }
+
+  /* ---------- CYBER GLOW BACKGROUND ---------- */
+  #space{
+    position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(180,20,30,0.35), transparent 45%),
+      radial-gradient(circle at 85% 25%, rgba(255,120,20,0.16), transparent 45%),
+      radial-gradient(circle at 50% 85%, rgba(120,0,10,0.35), transparent 50%),
+      linear-gradient(160deg, #0a0303 0%, #150404 45%, #060202 100%);
+    background-size: 200% 200%;
+    animation: bgShift 22s ease-in-out infinite;
+  }
+  @keyframes bgShift{
+    0%{ background-position: 0% 0%; }
+    50%{ background-position: 100% 60%; }
+    100%{ background-position: 0% 0%; }
+  }
+
+  canvas#stars{ position:fixed; inset:0; z-index:1; }
+
+  .orb{
+    position:fixed; border-radius:50%; z-index:1;
+    filter: blur(2px);
+    animation: orbFloat linear infinite;
+    mix-blend-mode: screen;
+  }
+  .orb.o1{
+    width:260px; height:260px; top:-6%; left:-8%;
+    background: radial-gradient(circle, rgba(220,20,30,0.45), transparent 70%);
+    animation-duration: 26s;
+  }
+  .orb.o2{
+    width:220px; height:220px; bottom:-8%; right:-6%;
+    background: radial-gradient(circle, rgba(255,120,20,0.30), transparent 70%);
+    animation-duration: 34s;
+    animation-direction: reverse;
+  }
+  .orb.o3{
+    width:180px; height:180px; top:55%; left:60%;
+    background: radial-gradient(circle, rgba(140,0,20,0.40), transparent 70%);
+    animation-duration: 20s;
+  }
+  @keyframes orbFloat{
+    0%{ transform: translate(0,0) scale(1); }
+    50%{ transform: translate(30px,-25px) scale(1.08); }
+    100%{ transform: translate(0,0) scale(1); }
+  }
+
+  /* ---------- UI CARD ---------- */
+  .wrap{
+    position:relative; z-index:5;
+    height:100vh; display:flex; align-items:center; justify-content:center;
+  }
+  .card{
+    position:relative;
+    width:min(90vw, 380px);
+    background: linear-gradient(180deg, rgba(20,6,7,0.75), rgba(10,3,4,0.75));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius:6px;
+    border:1px solid rgba(255,44,60,0.45);
+    box-shadow: 0 0 50px rgba(255,44,60,0.18), 0 20px 60px rgba(0,0,0,0.6), inset 0 0 30px rgba(255,44,60,0.05);
+    padding:34px 28px;
+    text-align:center;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  }
+  .card::before{
+    content:'';
+    position:absolute; inset:0;
+    border-radius:6px;
+    padding:1px;
+    background: linear-gradient(135deg, rgba(255,122,26,0.6), transparent 40%, rgba(255,44,60,0.6));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events:none;
+  }
+  .glyph{
+    font-size:26px;
+    margin-bottom:6px;
+    filter: drop-shadow(0 0 10px rgba(255,44,60,0.7));
+  }
+  h1{
+    margin:0 0 4px;
+    font-size:22px;
+    letter-spacing:2px;
+    color:var(--blood);
+    text-shadow:0 0 16px rgba(255,44,60,0.65), 0 0 3px rgba(255,44,60,0.9);
+    text-transform:uppercase;
+  }
+  .sub{
+    margin:0 0 20px;
+    font-size:13px;
+    color:#c99a97;
+  }
+  .key-box{
+    background:rgba(0,0,0,0.45);
+    border:1px solid rgba(255,122,26,0.25);
+    border-radius:6px;
+    padding:16px;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:2px;
+    margin-bottom:20px;
+    word-break:break-all;
+    color: var(--ember);
+    text-shadow: 0 0 10px rgba(255,122,26,0.5);
+  }
+  .copy-btn{
+    background: linear-gradient(135deg, var(--blood), var(--blood-dim));
+    color:#fff0ee;
+    border:none;
+    padding:12px 28px;
+    border-radius:6px;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:.2s ease;
+    box-shadow:0 0 20px rgba(255,44,60,0.4);
+  }
+  .copy-btn:hover{ filter:brightness(1.15); transform:translateY(-1px); }
+  .copy-btn:active{ transform:translateY(0); }
+  .footer{
+    margin-top:18px;
+    font-size:12px;
+    color:#a9807c;
+    letter-spacing:0.3px;
+  }
+  .footer #timer{
+    color: var(--ember);
+    font-weight:700;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .orb{ animation: none !important; }
+  }
+</style>
 </head>
 <body>
-    <div class="card">
-        <h1>TGL_SCRIPTER</h1>
-        <p>Your Unique Daily Key is:</p>
-        <div class="key-box" id="key-display">Generating...</div>
-        <button class="copy-btn" onclick="copyKey()">Copy Key</button>
-        <div class="footer">Key expires in 24 hours.</div>
-    </div>
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const hwid = urlParams.get('hwid') || "GUEST";
-        const salt = "TGL_ULTIMATE_SECURITY_99";
+<div id="space"></div>
+<canvas id="stars"></canvas>
 
-        function generateKey(hwid) {
-            const date = new Date();
-            const seed = date.getUTCDate() + "" + (date.getUTCMonth() + 1) + "" + date.getUTCFullYear() + hwid + salt;
-            let hash = 0;
-            for (let i = 0; i < seed.length; i++) {
-                hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
-            }
-            return "TGL-" + Math.abs(hash);
+<div class="orb o1"></div>
+<div class="orb o2"></div>
+<div class="orb o3"></div>
+
+<div class="wrap">
+  <div class="card">
+    <h1>TGL_SCRIPTER</h1>
+    <p class="sub">Your key, forged for you:</p>
+    <div class="key-box" id="key-display">Generating...</div>
+    <button class="copy-btn" onclick="copyKey()">Copy Key</button>
+    <div class="footer">Expires in <span id="timer">--:--:--</span></div>
+  </div>
+</div>
+
+<script>
+  // ---- starfield ----
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let w, h, stars = [];
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function initStars(){
+    stars = [];
+    const count = Math.floor((w*h)/9000);
+    for(let i=0;i<count;i++){
+      stars.push({
+        x: Math.random()*w,
+        y: Math.random()*h,
+        r: Math.random()*1.8 + 0.6,
+        vx: (Math.random()-0.5)*0.25,
+        vy: (Math.random()-0.5)*0.25,
+        hue: Math.random() < 0.5 ? '255,44,60' : '255,122,26'
+      });
+    }
+  }
+  initStars();
+  window.addEventListener('resize', initStars);
+
+  const LINK_DIST = 130;
+
+  function drawStars(){
+    ctx.clearRect(0,0,w,h);
+
+    // move + draw nodes
+    for(const s of stars){
+      s.x += s.vx;
+      s.y += s.vy;
+      if(s.x < 0 || s.x > w) s.vx *= -1;
+      if(s.y < 0 || s.y > h) s.vy *= -1;
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(${s.hue},0.85)`;
+      ctx.shadowColor = `rgba(${s.hue},0.9)`;
+      ctx.shadowBlur = 6;
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // connecting lines between nearby nodes
+    for(let i=0;i<stars.length;i++){
+      for(let j=i+1;j<stars.length;j++){
+        const a = stars[i], b = stars[j];
+        const dx = a.x-b.x, dy = a.y-b.y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < LINK_DIST){
+          const alpha = (1 - dist/LINK_DIST) * 0.18;
+          ctx.strokeStyle = `rgba(255,90,60,${alpha.toFixed(3)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
         }
+      }
+    }
 
-        const key = generateKey(hwid);
-        document.getElementById("key-display").innerText = key;
+    requestAnimationFrame(drawStars);
+  }
+  drawStars();
 
-        function copyKey() {
-            navigator.clipboard.writeText(key);
-            alert("Key copied to clipboard!");
+  // ---- per-device key; 24h timer starts the first time "Copy Key" is clicked ----
+  const urlParams = new URLSearchParams(window.location.search);
+  const hwid = urlParams.get('hwid') || "GUEST";
+  const salt = "TGL_ULTIMATE_SECURITY_99";
+  const STORAGE_KEY = "tgl_key_data_" + hwid;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  function generateKey(hwid) {
+    const seed = Date.now() + "" + hwid + salt + Math.random();
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
+    }
+    return "TGL-" + Math.abs(hash);
+  }
+
+  function loadOrCreateKeyData() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      try {
+        const data = JSON.parse(raw);
+        // still valid if timer hasn't started yet, or hasn't run out
+        if (!data.expiresAt || data.expiresAt > Date.now()) {
+          return data;
         }
-    </script>
+      } catch (e) { /* fall through to regenerate */ }
+    }
+    // no data, corrupted data, or expired -> fresh key, timer not started yet
+    const fresh = { key: generateKey(hwid), expiresAt: null };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    return fresh;
+  }
+
+  let keyData = loadOrCreateKeyData();
+  const key = keyData.key;
+  document.getElementById("key-display").innerText = key;
+
+  function formatRemaining(ms) {
+    if (ms <= 0) return "00:00:00";
+    const totalSec = Math.floor(ms / 1000);
+    const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+    const s = String(totalSec % 60).padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  }
+
+  const timerEl = document.getElementById("timer");
+  function tickTimer() {
+    if (!keyData.expiresAt) {
+      timerEl.innerText = "starts once you copy the key";
+      return;
+    }
+    const remaining = keyData.expiresAt - Date.now();
+    if (remaining <= 0) {
+      timerEl.innerText = "expired — refresh for a new key";
+      clearInterval(timerInterval);
+      return;
+    }
+    timerEl.innerText = formatRemaining(remaining);
+  }
+  tickTimer();
+  const timerInterval = setInterval(tickTimer, 1000);
+
+  function copyKey() {
+    navigator.clipboard.writeText(key);
+    // start the 24h timer the first time the key is copied
+    if (!keyData.expiresAt) {
+      keyData.expiresAt = Date.now() + DAY_MS;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(keyData));
+      tickTimer();
+    }
+    alert("Key copied to clipboard!");
+  }
+</script>
+
 </body>
 </html>
-
