@@ -224,7 +224,7 @@
   }
   drawStars();
 
-  // ---- key system (SYNCHRONIZED) ----
+  // ---- key system (FINAL MATH FIX) ----
   const urlParams = new URLSearchParams(window.location.search);
   let rawHwid = urlParams.get('hwid') || "GUEST";
   let hwid = rawHwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -239,12 +239,15 @@
     const year = d.getUTCFullYear();
     const salt = "TGL_ULTIMATE_SECURITY_99";
 
-    // Seed format MUST be: DAY:1|MON:7|YR:2026|ID:HWID|SALT:SALT
+    // EXACT MATCH with Lua seed construction
     const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
     
+    // FINAL MATH SYNC: Lua uses 32-bit signed integers for this math
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
-      hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
+        // Force 32-bit integer math using bitwise operators
+        hash = (((hash << 5) - hash) + seed.charCodeAt(i)) | 0;
+        hash = hash % 9999999;
     }
     return "TGL-" + Math.abs(hash);
   }
