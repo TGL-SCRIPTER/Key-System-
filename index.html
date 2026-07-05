@@ -224,7 +224,7 @@
   }
   drawStars();
 
-  // ---- key system (GUARANTEED SYNC) ----
+  // ---- key system (FINAL SYNC) ----
   const urlParams = new URLSearchParams(window.location.search);
   let rawHwid = urlParams.get('hwid') || "GUEST";
   let hwid = rawHwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -239,11 +239,9 @@
 
     const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
     
-    // GUARANTEED SYNC HASHING
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
-        hash = (hash + seed.charCodeAt(i)) * 3;
-        hash = hash % 10000000;
+        hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
     }
     return "TGL-" + Math.floor(Math.abs(hash));
   }
