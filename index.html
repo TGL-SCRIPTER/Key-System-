@@ -290,26 +290,19 @@
 
   function generateKey(id, offset = 0) {
     const now = new Date();
-    // Synchronize time with Lua os.time() + offset * 86400
     const d = new Date(now.getTime() + (offset * 86400000));
-    
-    // Use UTC to match Lua's os.date("!*t")
     const day = d.getUTCDate().toString();
     const month = (d.getUTCMonth() + 1).toString();
     const year = d.getUTCFullYear().toString();
-    
     const salt = "TGL_ULTIMATE_SECURITY_99";
     const cleanId = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 
-    // The seed string MUST match exactly: "DAY:X|MON:X|YR:X|ID:X|SALT:X"
     const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + cleanId + "|SALT:" + salt;
     
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
-        // Use 32-bit integer arithmetic to match Lua's behavior
         hash = (hash + seed.charCodeAt(i)) | 0;
         hash = (hash * 3) | 0;
-        // math.abs and modulo
         hash = Math.abs(hash % 9999999);
     }
     return "TGL-" + hash;
