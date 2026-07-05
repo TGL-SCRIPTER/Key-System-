@@ -1,4 +1,4 @@
-      <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -92,11 +92,6 @@
     mask-composite: exclude;
     pointer-events:none;
   }
-  .glyph{
-    font-size:26px;
-    margin-bottom:6px;
-    filter: drop-shadow(0 0 10px rgba(255,44,60,0.7));
-  }
   h1{
     margin:0 0 4px;
     font-size:22px;
@@ -148,10 +143,6 @@
   .footer #timer{
     color: var(--ember);
     font-weight:700;
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    .orb{ animation: none !important; }
   }
 </style>
 </head>
@@ -241,26 +232,27 @@
   const urlParams = new URLSearchParams(window.location.search);
   const hwid = urlParams.get('hwid') || "GUEST";
   const salt = "TGL_ULTIMATE_SECURITY_99";
-  const TIMER_KEY = "tgl_timer_" + hwid;   // only stores the expiry, NOT the key
+  const TIMER_KEY = "tgl_timer_" + hwid;
   const DAY_MS = 24 * 60 * 60 * 1000;
 
-  // Matches Lua GetDailyKey exactly:
-  // seed = day .. month .. year .. hwid .. SALT  (all UTC)
   function generateKey(hwid) {
     const now = new Date();
+    // UTC date to match os.date("!*t") in Lua
     const day   = now.getUTCDate();
-    const month = now.getUTCMonth() + 1;   // 0-based in JS
+    const month = now.getUTCMonth() + 1;
     const year  = now.getUTCFullYear();
+    
+    // Seed MUST match Lua: day .. month .. year .. hwid .. salt
     const seed  = String(day) + String(month) + String(year) + hwid + salt;
+    
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
+      // Lua: (hash * 31 + string.byte(seed, i)) % 9999999
       hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
     }
     return "TGL-" + Math.abs(hash);
   }
 
-  // Key is always computed fresh — no caching of the key value.
-  // Only the countdown timer expiry is stored in localStorage.
   const key = generateKey(hwid);
   document.getElementById("key-display").innerText = key;
 
