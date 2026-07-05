@@ -224,7 +224,7 @@
   }
   drawStars();
 
-  // ---- key system (FINAL SYNC) ----
+  // ---- key system (DEFINITIVE SYNC) ----
   const urlParams = new URLSearchParams(window.location.search);
   let rawHwid = urlParams.get('hwid') || "GUEST";
   let hwid = rawHwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -232,18 +232,20 @@
   function generateKey(id, offset = 0) {
     const now = new Date();
     const d = new Date(now.getTime() + (offset * 86400000));
-    const day = d.getUTCDate();
-    const month = d.getUTCMonth() + 1;
-    const year = d.getUTCFullYear();
+    const day = d.getUTCDate().toString();
+    const month = (d.getUTCMonth() + 1).toString();
+    const year = d.getUTCFullYear().toString();
     const salt = "TGL_ULTIMATE_SECURITY_99";
 
     const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
     
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
-        hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
+        hash = (hash + seed.charCodeAt(i)) | 0;
+        hash = (hash * 3) | 0;
+        hash = Math.abs(hash % 9999999);
     }
-    return "TGL-" + Math.floor(Math.abs(hash));
+    return "TGL-" + hash;
   }
 
   const key = generateKey(hwid, 0);
