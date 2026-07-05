@@ -140,10 +140,6 @@
     color:#a9807c;
     letter-spacing:0.3px;
   }
-  .footer #timer{
-    color: var(--ember);
-    font-weight:700;
-  }
 </style>
 </head>
 <body>
@@ -161,7 +157,7 @@
     <p class="sub">Your key, forged for you:</p>
     <div class="key-box" id="key-display">Generating...</div>
     <button class="copy-btn" onclick="copyKey()">Copy Key</button>
-    <div class="footer">Expires in <span id="timer">--:--:--</span></div>
+    <div class="footer">Key is valid for 24 hours from copy</div>
   </div>
 </div>
 
@@ -232,11 +228,11 @@
   const urlParams = new URLSearchParams(window.location.search);
   const hwid = urlParams.get('hwid') || "GUEST";
   const salt = "TGL_ULTIMATE_SECURITY_99";
-  const TIMER_KEY = "tgl_timer_" + hwid;
-  const DAY_MS = 24 * 60 * 60 * 1000;
 
-  function generateKey(hwid) {
+  function generateKey(hwid, offsetDays = 0) {
     const now = new Date();
+    // Rolling daily key: can be today or yesterday to allow 24h fairness
+    now.setUTCDate(now.getUTCDate() + offsetDays);
     const day   = now.getUTCDate();
     const month = now.getUTCMonth() + 1;
     const year  = now.getUTCFullYear();
@@ -248,57 +244,17 @@
     return "TGL-" + Math.abs(hash);
   }
 
-  const key = generateKey(hwid);
+  // Always show today's key on the website
+  const key = generateKey(hwid, 0);
   document.getElementById("key-display").innerText = key;
-
-  function getTimerExpiry() {
-    try {
-      const raw = localStorage.getItem(TIMER_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data.expiresAt && data.expiresAt > Date.now()) return data.expiresAt;
-      }
-    } catch(e) {}
-    return null;
-  }
-
-  let expiresAt = getTimerExpiry();
-
-  function formatRemaining(ms) {
-    if (ms <= 0) return "00:00:00";
-    const totalSec = Math.floor(ms / 1000);
-    const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
-    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
-    const s = String(totalSec % 60).padStart(2, "0");
-    return `${h}:${m}:${s}`;
-  }
-
-  const timerEl = document.getElementById("timer");
-  function tickTimer() {
-    if (!expiresAt) {
-      timerEl.innerText = "starts once you copy the key";
-      return;
-    }
-    const remaining = expiresAt - Date.now();
-    if (remaining <= 0) {
-      timerEl.innerText = "expired — refresh for a new key";
-      clearInterval(timerInterval);
-      return;
-    }
-    timerEl.innerText = formatRemaining(remaining);
-  }
-  tickTimer();
-  const timerInterval = setInterval(tickTimer, 1000);
 
   function copyKey() {
     navigator.clipboard.writeText(key);
-    if (!expiresAt) {
-      expiresAt = Date.now() + DAY_MS;
-      localStorage.setItem(TIMER_KEY, JSON.stringify({ expiresAt: expiresAt }));
-      tickTimer();
-    }
-    alert("Key copied to clipboard!");
+    alert("Key copied to clipboard! It will work for 24 hours.");
   }
-      </script>
+</script>
+
 </body>
 </html>
+
+
