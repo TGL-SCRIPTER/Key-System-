@@ -49,7 +49,7 @@
   }
   .orb.o2{
     width:220px; height:220px; bottom:-8%; right:-6%;
-    background: radial-gradient(circle, rgba(255,120,20,0.30), transparent 70%);
+    background: radial-gradient(circle, rgba(255,122,26,0.30), transparent 70%);
     animation-duration: 34s;
     animation-direction: reverse;
   }
@@ -237,17 +237,12 @@
 
   function generateKey(hwid) {
     const now = new Date();
-    // UTC date to match os.date("!*t") in Lua
     const day   = now.getUTCDate();
     const month = now.getUTCMonth() + 1;
     const year  = now.getUTCFullYear();
-    
-    // Seed MUST match Lua: day .. month .. year .. hwid .. salt
     const seed  = String(day) + String(month) + String(year) + hwid + salt;
-    
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
-      // Lua: (hash * 31 + string.byte(seed, i)) % 9999999
       hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
     }
     return "TGL-" + Math.abs(hash);
@@ -304,7 +299,6 @@
     }
     alert("Key copied to clipboard!");
   }
-</script>
-
+      </script>
 </body>
 </html>
