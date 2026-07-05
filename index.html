@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>TGL_SCRIPTER Auth</title>
+<title>TGL_SCRIPTER Key System</title>
 <style>
   :root{
     --blood: #ff2c3c;
@@ -118,6 +118,21 @@
     color: var(--ember);
     text-shadow: 0 0 10px rgba(255,122,26,0.5);
   }
+  .hwid-box{
+    background:rgba(0,0,0,0.45);
+    border:1px solid rgba(100,100,110,0.25);
+    border-radius:6px;
+    padding:12px;
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:1px;
+    margin-bottom:15px;
+    word-break:break-all;
+    color: #a0a0b0;
+    text-shadow: 0 0 5px rgba(100,100,110,0.3);
+    max-height:60px;
+    overflow-y:auto;
+  }
   .copy-btn{
     background: linear-gradient(135deg, var(--blood), var(--blood-dim));
     color:#fff0ee;
@@ -140,6 +155,13 @@
     color:#a9807c;
     letter-spacing:0.3px;
   }
+  .debug-info{
+    margin-top:12px;
+    font-size:11px;
+    color:#808080;
+    border-top:1px solid rgba(255,255,255,0.1);
+    padding-top:12px;
+  }
 </style>
 </head>
 <body>
@@ -154,10 +176,15 @@
 <div class="wrap">
   <div class="card">
     <h1>TGL_SCRIPTER</h1>
-    <p class="sub">Your unique device key:</p>
+    <p class="sub">Your key, forged for you:</p>
+    <div class="hwid-box" id="hwid-display">HWID: <span id="hwid-value">Detecting...</span></div>
     <div class="key-box" id="key-display">Generating...</div>
     <button class="copy-btn" onclick="copyKey()">Copy Key</button>
-    <div class="footer">Key is valid for 24 hours</div>
+    <div class="footer">Key is valid for 24 hours from generation</div>
+    <div class="debug-info">
+      <div>Today's Key: <span id="debug-today" style="color:#ff7a1a;"></span></div>
+      <div>Yesterday's Key: <span id="debug-yesterday" style="color:#ff7a1a;"></span></div>
+    </div>
   </div>
 </div>
 
@@ -224,20 +251,28 @@
   }
   drawStars();
 
-  // ---- key system ----
+  // ---- key system (SYNCHRONIZED WITH LUA) ----
   const urlParams = new URLSearchParams(window.location.search);
-  const rawHwid = urlParams.get('hwid') || "GUEST";
-  // Clean HWID: strip everything except alphanumeric to ensure match across platforms
-  const hwid = rawHwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  let hwid = urlParams.get('hwid') || "GUEST";
+
+  // Sanitize HWID to match Lua's GetCleanHWID function
+  hwid = hwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+
   const salt = "TGL_ULTIMATE_SECURITY_99";
 
-  function generateKey(id) {
+  // Display the HWID
+  document.getElementById('hwid-value').innerText = hwid;
+
+  function generateKey(id, offsetDays = 0) {
     const now = new Date();
+    now.setUTCDate(now.getUTCDate() + offsetDays);
     const day   = now.getUTCDate();
     const month = now.getUTCMonth() + 1;
     const year  = now.getUTCFullYear();
-    // Precise seed with delimiters
-    const seed  = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
+
+    // EXACT MATCH with Lua seed construction
+    const seed = `DAY:${day}|MON:${month}|YR:${year}|ID:${id}|SALT:${salt}`;
+
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
       hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
@@ -245,15 +280,25 @@
     return "TGL-" + Math.abs(hash);
   }
 
-  const key = generateKey(hwid);
-  document.getElementById("key-display").innerText = key;
+  // Generate both today's and yesterday's keys for debugging
+  const keyToday = generateKey(hwid, 0);
+  const keyYesterday = generateKey(hwid, -1);
+
+  // Display today's key
+  document.getElementById("key-display").innerText = keyToday;
+  document.getElementById("debug-today").innerText = keyToday;
+  document.getElementById("debug-yesterday").innerText = keyYesterday;
 
   function copyKey() {
-    navigator.clipboard.writeText(key);
-    alert("Key copied! Valid for 24 hours on this device.");
+    navigator.clipboard.writeText(keyToday).then(() => {
+      alert("Key copied to clipboard!\n\nYour HWID: " + hwid + "\n\nPaste this key into the Roblox loader.\nKey is valid for 24 hours.");
+    }).catch(err => {
+      alert("Failed to copy key. Please copy manually: " + keyToday);
+    });
   }
 </script>
 
 </body>
 </html>
+
 
