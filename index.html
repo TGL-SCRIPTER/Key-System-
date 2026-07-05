@@ -105,6 +105,18 @@
     font-size:13px;
     color:#c99a97;
   }
+  .hwid-input{
+    width:100%;
+    background:rgba(0,0,0,0.45);
+    border:1px solid rgba(255,44,60,0.25);
+    border-radius:6px;
+    padding:10px;
+    color:#fff;
+    margin-bottom:15px;
+    font-size:14px;
+    text-align:center;
+    display:none; /* Hidden by default */
+  }
   .key-box{
     background:rgba(0,0,0,0.45);
     border:1px solid rgba(255,122,26,0.25);
@@ -154,7 +166,8 @@
 <div class="wrap">
   <div class="card">
     <h1>TGL_SCRIPTER</h1>
-    <p class="sub">Your key, forged for you:</p>
+    <p class="sub" id="status-text">Your key, forged for you:</p>
+    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste HWID from Loader here..." oninput="updateKey()">
     <div class="key-box" id="key-display">Generating...</div>
     <button class="copy-btn" onclick="copyKey()">Copy Key</button>
     <div class="footer">Key is valid for 24 hours from generation</div>
@@ -224,10 +237,23 @@
   }
   drawStars();
 
-  // ---- key system (DEFINITIVE SYNC) ----
+  // ---- key system (REDIRECT-PROOF AUTO SYNC) ----
   const urlParams = new URLSearchParams(window.location.search);
-  let rawHwid = urlParams.get('hwid') || "GUEST";
-  let hwid = rawHwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  
+  // Try to get HWID from ?hwid= or from the #hash (Link-hub proof)
+  let hwid = urlParams.get('hwid') || window.location.hash.substring(1) || "";
+  
+  const field = document.getElementById("hwid-field");
+  const status = document.getElementById("status-text");
+
+  if(hwid) {
+      field.value = hwid;
+      field.style.display = "none";
+      status.innerText = "Automatic Device Detection Successful:";
+  } else {
+      field.style.display = "block";
+      status.innerText = "Automatic detection failed. Paste your HWID below:";
+  }
 
   function generateKey(id, offset = 0) {
     const now = new Date();
@@ -236,8 +262,9 @@
     const month = (d.getUTCMonth() + 1).toString();
     const year = d.getUTCFullYear().toString();
     const salt = "TGL_ULTIMATE_SECURITY_99";
+    const cleanId = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() || "GUEST";
 
-    const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
+    const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + cleanId + "|SALT:" + salt;
     
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
@@ -248,10 +275,15 @@
     return "TGL-" + hash;
   }
 
-  const key = generateKey(hwid, 0);
-  document.getElementById("key-display").innerText = key;
+  function updateKey() {
+    const val = field.value;
+    document.getElementById("key-display").innerText = generateKey(val, 0);
+  }
+
+  updateKey();
 
   function copyKey() {
+    const key = document.getElementById("key-display").innerText;
     navigator.clipboard.writeText(key).then(() => {
       alert("Key copied to clipboard!");
     });
