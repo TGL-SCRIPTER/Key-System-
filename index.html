@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -211,7 +211,6 @@
   function drawStars(){
     ctx.clearRect(0,0,w,h);
 
-    // move + draw nodes
     for(const s of stars){
       s.x += s.vx;
       s.y += s.vy;
@@ -227,7 +226,6 @@
     }
     ctx.shadowBlur = 0;
 
-    // connecting lines between nearby nodes
     for(let i=0;i<stars.length;i++){
       for(let j=i+1;j<stars.length;j++){
         const a = stars[i], b = stars[j];
@@ -249,15 +247,21 @@
   }
   drawStars();
 
-  // ---- per-device key; 24h timer starts the first time "Copy Key" is clicked ----
+  // ---- key system ----
   const urlParams = new URLSearchParams(window.location.search);
   const hwid = urlParams.get('hwid') || "GUEST";
   const salt = "TGL_ULTIMATE_SECURITY_99";
   const STORAGE_KEY = "tgl_key_data_" + hwid;
   const DAY_MS = 24 * 60 * 60 * 1000;
 
+  // FIXED: now matches Lua GetDailyKey exactly
+  // seed = day .. month .. year .. hwid .. SALT  (UTC date)
   function generateKey(hwid) {
-    const seed = Date.now() + "" + hwid + salt + Math.random();
+    const now = new Date();
+    const day   = now.getUTCDate();
+    const month = now.getUTCMonth() + 1;
+    const year  = now.getUTCFullYear();
+    const seed  = String(day) + String(month) + String(year) + hwid + salt;
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
       hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
@@ -270,13 +274,11 @@
     if (raw) {
       try {
         const data = JSON.parse(raw);
-        // still valid if timer hasn't started yet, or hasn't run out
         if (!data.expiresAt || data.expiresAt > Date.now()) {
           return data;
         }
-      } catch (e) { /* fall through to regenerate */ }
+      } catch (e) {}
     }
-    // no data, corrupted data, or expired -> fresh key, timer not started yet
     const fresh = { key: generateKey(hwid), expiresAt: null };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
     return fresh;
@@ -314,7 +316,6 @@
 
   function copyKey() {
     navigator.clipboard.writeText(key);
-    // start the 24h timer the first time the key is copied
     if (!keyData.expiresAt) {
       keyData.expiresAt = Date.now() + DAY_MS;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(keyData));
