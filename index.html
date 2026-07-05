@@ -105,18 +105,6 @@
     font-size:13px;
     color:#c99a97;
   }
-  .hwid-input{
-    width:100%;
-    background:rgba(0,0,0,0.45);
-    border:1px solid rgba(255,44,60,0.25);
-    border-radius:6px;
-    padding:10px;
-    color:#fff;
-    margin-bottom:15px;
-    font-size:14px;
-    text-align:center;
-    display:none; /* Hidden by default */
-  }
   .key-box{
     background:rgba(0,0,0,0.45);
     border:1px solid rgba(255,122,26,0.25);
@@ -152,6 +140,7 @@
     color:#a9807c;
     letter-spacing:0.3px;
   }
+  .denied-text { color: #ff4d4d; font-weight: bold; font-size: 16px; margin: 20px 0; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -164,12 +153,13 @@
 <div class="orb o3"></div>
 
 <div class="wrap">
-  <div class="card">
+  <div class="card" id="main-card">
     <h1>TGL_SCRIPTER</h1>
-    <p class="sub" id="status-text">Your key, forged for you:</p>
-    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste HWID from Loader here..." oninput="updateKey()">
-    <div class="key-box" id="key-display">Generating...</div>
-    <button class="copy-btn" onclick="copyKey()">Copy Key</button>
+    <div id="content-area">
+        <p class="sub">Your key, forged for you:</p>
+        <div class="key-box" id="key-display">Generating...</div>
+        <button class="copy-btn" onclick="copyKey()">Copy Key</button>
+    </div>
     <div class="footer">Key is valid for 24 hours from generation</div>
   </div>
 </div>
@@ -237,22 +227,25 @@
   }
   drawStars();
 
-  // ---- key system (REDIRECT-PROOF AUTO SYNC) ----
+  // ---- key system (HASH-LOCK SYNC) ----
   const urlParams = new URLSearchParams(window.location.search);
   
-  // Try to get HWID from ?hwid= or from the #hash (Link-hub proof)
-  let hwid = urlParams.get('hwid') || window.location.hash.substring(1) || "";
+  // Look for HWID in ?hwid= or in #hash (Link-hub/Bypass Proof)
+  let hwid = urlParams.get('hwid') || window.location.hash.substring(1);
   
-  const field = document.getElementById("hwid-field");
-  const status = document.getElementById("status-text");
+  const contentArea = document.getElementById("content-area");
 
-  if(hwid) {
-      field.value = hwid;
-      field.style.display = "none";
-      status.innerText = "Automatic Device Detection Successful:";
+  if (!hwid || hwid.toUpperCase() === "GUEST" || hwid.length < 5) {
+      // BLOCK BYPASSERS & GUEST KEYS
+      contentArea.innerHTML = `
+          <p class="denied-text">Access Denied</p>
+          <p class="sub">Link Broken or Bypass Detected.<br>Please use the official link from the loader.</p>
+          <button class="copy-btn" onclick="location.reload()">Retry</button>
+      `;
   } else {
-      field.style.display = "block";
-      status.innerText = "Automatic detection failed. Paste your HWID below:";
+      const cleanHwid = hwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      const key = generateKey(cleanHwid, 0);
+      document.getElementById("key-display").innerText = key;
   }
 
   function generateKey(id, offset = 0) {
@@ -262,9 +255,8 @@
     const month = (d.getUTCMonth() + 1).toString();
     const year = d.getUTCFullYear().toString();
     const salt = "TGL_ULTIMATE_SECURITY_99";
-    const cleanId = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() || "GUEST";
 
-    const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + cleanId + "|SALT:" + salt;
+    const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
     
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
@@ -275,13 +267,6 @@
     return "TGL-" + hash;
   }
 
-  function updateKey() {
-    const val = field.value;
-    document.getElementById("key-display").innerText = generateKey(val, 0);
-  }
-
-  updateKey();
-
   function copyKey() {
     const key = document.getElementById("key-display").innerText;
     navigator.clipboard.writeText(key).then(() => {
@@ -291,5 +276,3 @@
 </script>
 </body>
 </html>
-
-
