@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>TGL_SCRIPTER Key System</title>
+<title>TGL_SCRIPTER Auth</title>
 <style>
   :root{
     --blood: #ff2c3c;
@@ -154,10 +154,10 @@
 <div class="wrap">
   <div class="card">
     <h1>TGL_SCRIPTER</h1>
-    <p class="sub">Your key, forged for you:</p>
+    <p class="sub">Your device-locked key:</p>
     <div class="key-box" id="key-display">Generating...</div>
     <button class="copy-btn" onclick="copyKey()">Copy Key</button>
-    <div class="footer">Key is valid for 24 hours from copy</div>
+    <div class="footer">Key is valid for 24 hours</div>
   </div>
 </div>
 
@@ -229,10 +229,8 @@
   const hwid = urlParams.get('hwid') || "GUEST";
   const salt = "TGL_ULTIMATE_SECURITY_99";
 
-  function generateKey(hwid, offsetDays = 0) {
+  function generateKey(hwid) {
     const now = new Date();
-    // Rolling daily key: can be today or yesterday to allow 24h fairness
-    now.setUTCDate(now.getUTCDate() + offsetDays);
     const day   = now.getUTCDate();
     const month = now.getUTCMonth() + 1;
     const year  = now.getUTCFullYear();
@@ -244,8 +242,7 @@
     return "TGL-" + Math.abs(hash);
   }
 
-  // Always show today's key on the website
-  const key = generateKey(hwid, 0);
+  const key = generateKey(hwid);
   document.getElementById("key-display").innerText = key;
 
   function copyKey() {
