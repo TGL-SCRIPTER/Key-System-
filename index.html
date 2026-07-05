@@ -154,7 +154,7 @@
 <div class="wrap">
   <div class="card">
     <h1>TGL_SCRIPTER</h1>
-    <p class="sub">Your device-locked key:</p>
+    <p class="sub">Your unique device key:</p>
     <div class="key-box" id="key-display">Generating...</div>
     <button class="copy-btn" onclick="copyKey()">Copy Key</button>
     <div class="footer">Key is valid for 24 hours</div>
@@ -226,15 +226,18 @@
 
   // ---- key system ----
   const urlParams = new URLSearchParams(window.location.search);
-  const hwid = urlParams.get('hwid') || "GUEST";
+  const rawHwid = urlParams.get('hwid') || "GUEST";
+  // Clean HWID: strip everything except alphanumeric to ensure match across platforms
+  const hwid = rawHwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   const salt = "TGL_ULTIMATE_SECURITY_99";
 
-  function generateKey(hwid) {
+  function generateKey(id) {
     const now = new Date();
     const day   = now.getUTCDate();
     const month = now.getUTCMonth() + 1;
     const year  = now.getUTCFullYear();
-    const seed  = String(day) + String(month) + String(year) + hwid + salt;
+    // Precise seed with delimiters
+    const seed  = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
       hash = (hash * 31 + seed.charCodeAt(i)) % 9999999;
@@ -247,7 +250,7 @@
 
   function copyKey() {
     navigator.clipboard.writeText(key);
-    alert("Key copied to clipboard! It will work for 24 hours.");
+    alert("Key copied! Valid for 24 hours on this device.");
   }
 </script>
 
