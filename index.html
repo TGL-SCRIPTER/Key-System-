@@ -105,6 +105,40 @@
     font-size:13px;
     color:#c99a97;
   }
+  .input-group {
+    position: relative;
+    margin-bottom: 25px;
+  }
+  .hwid-input{
+    width:100%;
+    background:rgba(0,0,0,0.45);
+    border:1px solid rgba(255,44,60,0.45);
+    border-radius:6px;
+    padding:12px;
+    color:#fff;
+    font-size:16px;
+    text-align:center;
+    font-family: monospace;
+    outline: none;
+    transition: 0.3s;
+  }
+  .hwid-input:focus{ border-color: var(--ember); box-shadow: 0 0 10px rgba(255,122,26,0.3); }
+  
+  .get-id-link {
+    display: block;
+    text-align: right;
+    color: var(--ember);
+    font-size: 11px;
+    text-decoration: none;
+    margin-top: 5px;
+    transition: 0.2s;
+    cursor: pointer;
+  }
+  .get-id-link:hover {
+    text-shadow: 0 0 8px var(--ember);
+    text-decoration: underline;
+  }
+
   .key-box{
     background:rgba(0,0,0,0.45);
     border:1px solid rgba(255,122,26,0.25);
@@ -117,8 +151,14 @@
     word-break:break-all;
     color: var(--ember);
     text-shadow: 0 0 10px rgba(255,122,26,0.5);
+    display: none;
   }
-  .copy-btn{
+  .btn-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .action-btn{
     background: linear-gradient(135deg, var(--blood), var(--blood-dim));
     color:#fff0ee;
     border:none;
@@ -131,16 +171,23 @@
     cursor:pointer;
     transition:.2s ease;
     box-shadow:0 0 20px rgba(255,44,60,0.4);
+    width: 100%;
   }
-  .copy-btn:hover{ filter:brightness(1.15); transform:translateY(-1px); }
-  .copy-btn:active{ transform:translateY(0); }
+  .action-btn:hover{ filter:brightness(1.15); transform:translateY(-1px); }
+  .action-btn:active{ transform:translateY(0); }
+  
+  .copy-btn {
+    background: linear-gradient(135deg, #222, #111);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: none;
+  }
+
   .footer{
     margin-top:18px;
     font-size:12px;
     color:#a9807c;
     letter-spacing:0.3px;
   }
-  .denied-text { color: #ff4d4d; font-weight: bold; font-size: 16px; margin: 20px 0; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -155,11 +202,19 @@
 <div class="wrap">
   <div class="card" id="main-card">
     <h1>TGL_SCRIPTER</h1>
-    <div id="content-area">
-        <p class="sub">Your key, forged for you:</p>
-        <div class="key-box" id="key-display">Generating...</div>
-        <button class="copy-btn" onclick="copyKey()">Copy Key</button>
+    <p class="sub" id="status-text">Enter Device ID to Unlock:</p>
+    
+    <div class="input-group">
+      <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste Device ID here...">
+      <a class="get-id-link" onclick="alert('Please copy your Device ID from the TGL Loader UI in-game.')">Click to get your device id</a>
     </div>
+
+    <div class="btn-container">
+        <button class="action-btn" id="get-key-btn" onclick="handleGetKey()">Get Key</button>
+        <div class="key-box" id="key-display">--- --- ---</div>
+        <button class="action-btn copy-btn" id="copy-btn" onclick="copyKey()">Copy Key</button>
+    </div>
+
     <div class="footer">Key is valid for 24 hours from generation</div>
   </div>
 </div>
@@ -227,52 +282,75 @@
   }
   drawStars();
 
-  // ---- key system (HASH-LOCK SYNC) ----
-  const urlParams = new URLSearchParams(window.location.search);
-  
-  // Look for HWID in ?hwid= or in #hash (Link-hub/Bypass Proof)
-  let hwid = urlParams.get('hwid') || window.location.hash.substring(1);
-  
-  const contentArea = document.getElementById("content-area");
-
-  if (!hwid || hwid.toUpperCase() === "GUEST" || hwid.length < 5) {
-      // BLOCK BYPASSERS & GUEST KEYS
-      contentArea.innerHTML = `
-          <p class="denied-text">Access Denied</p>
-          <p class="sub">Link Broken or Bypass Detected.<br>Please use the official link from the loader.</p>
-          <button class="copy-btn" onclick="location.reload()">Retry</button>
-      `;
-  } else {
-      const cleanHwid = hwid.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-      const key = generateKey(cleanHwid, 0);
-      document.getElementById("key-display").innerText = key;
-  }
+  // ---- key system (SYNCHRONIZED WITH LUA) ----
+  const field = document.getElementById("hwid-field");
+  const keyDisplay = document.getElementById("key-display");
+  const copyBtn = document.getElementById("copy-btn");
+  const getBtn = document.getElementById("get-key-btn");
 
   function generateKey(id, offset = 0) {
     const now = new Date();
+    // Synchronize time with Lua os.time() + offset * 86400
     const d = new Date(now.getTime() + (offset * 86400000));
+    
+    // Use UTC to match Lua's os.date("!*t")
     const day = d.getUTCDate().toString();
     const month = (d.getUTCMonth() + 1).toString();
     const year = d.getUTCFullYear().toString();
+    
     const salt = "TGL_ULTIMATE_SECURITY_99";
+    const cleanId = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 
-    const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + id + "|SALT:" + salt;
+    // The seed string MUST match exactly: "DAY:X|MON:X|YR:X|ID:X|SALT:X"
+    const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + cleanId + "|SALT:" + salt;
     
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
+        // Use 32-bit integer arithmetic to match Lua's behavior
         hash = (hash + seed.charCodeAt(i)) | 0;
         hash = (hash * 3) | 0;
+        // math.abs and modulo
         hash = Math.abs(hash % 9999999);
     }
     return "TGL-" + hash;
   }
 
+  function handleGetKey() {
+    const val = field.value.trim();
+    if(val.length > 5) {
+        const key = generateKey(val, 0);
+        keyDisplay.innerText = key;
+        keyDisplay.style.display = "block";
+        copyBtn.style.display = "block";
+        getBtn.innerText = "Key Generated!";
+        setTimeout(() => {
+            getBtn.innerText = "Get Key";
+        }, 2000);
+    } else {
+        alert("Please enter a valid Device ID!");
+    }
+  }
+
   function copyKey() {
-    const key = document.getElementById("key-display").innerText;
+    const key = keyDisplay.innerText;
+    if(key === "--- --- ---") return;
     navigator.clipboard.writeText(key).then(() => {
-      alert("Key copied to clipboard!");
+      const originalText = copyBtn.innerText;
+      copyBtn.innerText = "COPIED!";
+      setTimeout(() => {
+        copyBtn.innerText = originalText;
+      }, 1500);
     });
+  }
+
+  // Auto-fill from URL if present
+  const urlParams = new URLSearchParams(window.location.search);
+  let initialHwid = urlParams.get('hwid') || window.location.hash.substring(1);
+  if(initialHwid && initialHwid.length > 5) {
+      field.value = initialHwid;
   }
 </script>
 </body>
 </html>
+
+
