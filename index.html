@@ -118,7 +118,7 @@
     font-family: monospace;
     outline: none;
     transition: 0.3s;
-    display: none; /* Only shows if auto-sync fails */
+    display: none;
   }
   .key-box{
     background:rgba(0,0,0,0.45);
@@ -169,8 +169,8 @@
 <div class="wrap">
   <div class="card" id="main-card">
     <h1>TGL_SCRIPTER</h1>
-    <p class="sub" id="status-text">Detecting Device...</p>
-    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste Device ID from Loader..." oninput="updateKey()">
+    <p class="sub" id="status-text">Verifying Device...</p>
+    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste ID from Loader..." oninput="updateKey()">
     <div class="key-box" id="key-display">--- --- ---</div>
     <button class="copy-btn" id="copy-btn" onclick="copyKey()" style="display:none;">Copy Key</button>
     <div class="footer">Key is valid for 24 hours from generation</div>
@@ -240,22 +240,38 @@
   }
   drawStars();
 
-  // ---- key system (FINAL "PRO" SYNC) ----
+  // ---- key system (MAGIC REDIRECT MEMORY) ----
+  const LINKVERT_URL = "https://link-hub.net/7154366/sLOEns8M50tJ";
   const urlParams = new URLSearchParams(window.location.search);
-  let hwid = urlParams.get('hwid') || window.location.hash.substring(1);
+  const hash = window.location.hash.substring(1);
   
   const field = document.getElementById("hwid-field");
   const status = document.getElementById("status-text");
   const copyBtn = document.getElementById("copy-btn");
 
-  if(hwid && hwid.length > 5) {
-      field.value = hwid;
-      field.style.display = "none";
-      status.innerText = "Key generated for your device:";
-      updateKey();
+  // Step 1: Detect "SAVE" command from Loader
+  if (hash.startsWith("SAVE:")) {
+      const idToSave = hash.split(":")[1];
+      if (idToSave) {
+          localStorage.setItem("TGL_HWID", idToSave);
+          status.innerText = "Device Registered. Redirecting...";
+          setTimeout(() => {
+              window.location.href = LINKVERT_URL;
+          }, 800);
+      }
   } else {
-      field.style.display = "block";
-      status.innerText = "Paste Device ID from Loader below:";
+      // Step 2: Try to get HWID from Memory or URL
+      let hwid = urlParams.get('hwid') || hash || localStorage.getItem("TGL_HWID");
+      
+      if(hwid && hwid.length > 5) {
+          field.value = hwid;
+          field.style.display = "none";
+          status.innerText = "Key generated for your device:";
+          updateKey();
+      } else {
+          field.style.display = "block";
+          status.innerText = "Paste Device ID from Loader below:";
+      }
   }
 
   function generateKey(id, offset = 0) {
@@ -283,9 +299,6 @@
     if(val.length > 5) {
         document.getElementById("key-display").innerText = generateKey(val, 0);
         copyBtn.style.display = "inline-block";
-    } else {
-        document.getElementById("key-display").innerText = "--- --- ---";
-        copyBtn.style.display = "none";
     }
   }
 
