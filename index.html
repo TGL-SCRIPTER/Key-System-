@@ -118,8 +118,8 @@
     font-family: monospace;
     outline: none;
     transition: 0.3s;
+    display: none; /* Only shows if auto-sync fails */
   }
-  .hwid-input:focus{ border-color: var(--ember); box-shadow: 0 0 10px rgba(255,122,26,0.3); }
   .key-box{
     background:rgba(0,0,0,0.45);
     border:1px solid rgba(255,122,26,0.25);
@@ -169,8 +169,8 @@
 <div class="wrap">
   <div class="card" id="main-card">
     <h1>TGL_SCRIPTER</h1>
-    <p class="sub" id="status-text">Enter Device ID to Unlock:</p>
-    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste ID from Loader..." oninput="updateKey()">
+    <p class="sub" id="status-text">Detecting Device...</p>
+    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste Device ID from Loader..." oninput="updateKey()">
     <div class="key-box" id="key-display">--- --- ---</div>
     <button class="copy-btn" id="copy-btn" onclick="copyKey()" style="display:none;">Copy Key</button>
     <div class="footer">Key is valid for 24 hours from generation</div>
@@ -240,19 +240,22 @@
   }
   drawStars();
 
-  // ---- key system (FINAL DEFINITIVE SYNC) ----
+  // ---- key system (FINAL "PRO" SYNC) ----
   const urlParams = new URLSearchParams(window.location.search);
-  let initialHwid = urlParams.get('hwid') || window.location.hash.substring(1);
+  let hwid = urlParams.get('hwid') || window.location.hash.substring(1);
   
   const field = document.getElementById("hwid-field");
   const status = document.getElementById("status-text");
   const copyBtn = document.getElementById("copy-btn");
 
-  if(initialHwid && initialHwid.length > 5) {
-      field.value = initialHwid;
+  if(hwid && hwid.length > 5) {
+      field.value = hwid;
       field.style.display = "none";
       status.innerText = "Key generated for your device:";
       updateKey();
+  } else {
+      field.style.display = "block";
+      status.innerText = "Paste Device ID from Loader below:";
   }
 
   function generateKey(id, offset = 0) {
