@@ -149,6 +149,32 @@
   }
   .copy-btn:hover{ filter:brightness(1.15); transform:translateY(-1px); }
   .copy-btn:active{ transform:translateY(0); }
+  .btn-row{
+    display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+    margin-top:14px;
+  }
+  .mini-btn{
+    background: rgba(255,255,255,0.06);
+    border:1px solid rgba(255,122,26,0.4);
+    color: var(--ink);
+    padding:9px 16px;
+    border-radius:6px;
+    font-weight:600;
+    font-size:12px;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:.2s ease;
+    display:none;
+  }
+  .mini-btn:hover{ filter:brightness(1.2); }
+  .time-text{
+    margin-top:12px;
+    font-size:13px;
+    color: var(--ember);
+    letter-spacing:0.5px;
+    font-family: monospace;
+  }
   .footer{
     margin-top:18px;
     font-size:12px;
@@ -170,10 +196,16 @@
   <div class="card" id="main-card">
     <h1>TGL_SCRIPTER</h1>
     <p class="sub" id="status-text">Verifying Device...</p>
-    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste ID from Loader..." oninput="updateKey()">
+    <input type="text" id="hwid-field" class="hwid-input" placeholder="Paste ID from Loader..." oninput="onManualIdInput()">
+    <button class="mini-btn" id="copy-id-btn" onclick="copyDeviceId()">Copy Device ID</button>
     <div class="key-box" id="key-display">--- --- ---</div>
     <button class="copy-btn" id="copy-btn" onclick="copyKey()" style="display:none;">Copy Key</button>
-    <div class="footer">Key is valid for 24 hours from generation</div>
+    <div class="time-text" id="time-remaining"></div>
+    <div class="btn-row">
+      <button class="mini-btn" id="extend-btn" onclick="extendTime()">+6 Hours (Redo Task)</button>
+      <button class="mini-btn" id="renew-btn" onclick="renewKey()">Get New Key</button>
+    </div>
+    <div class="footer" id="footer-text">Base key is valid 12 hours from generation. Complete the task again anytime to add 6 more hours.</div>
   </div>
 </div>
 
@@ -240,76 +272,188 @@
   }
   drawStars();
 
-  // ---- key system (MAGIC REDIRECT MEMORY) ----
+  // ---- key system (MAGIC REDIRECT MEMORY + EXTENDABLE TIME) ----
   const LINKVERT_URL = "https://link-hub.net/7154366/sLOEns8M50tJ";
   const urlParams = new URLSearchParams(window.location.search);
   const hash = window.location.hash.substring(1);
-  
-  const field = document.getElementById("hwid-field");
-  const status = document.getElementById("status-text");
-  const copyBtn = document.getElementById("copy-btn");
 
-  // Step 1: Detect "SAVE" command from Loader
-  if (hash.startsWith("SAVE:")) {
-      const idToSave = hash.split(":")[1];
-      if (idToSave) {
-          localStorage.setItem("TGL_HWID", idToSave);
-          status.innerText = "Device Registered. Redirecting...";
-          setTimeout(() => {
-              window.location.href = LINKVERT_URL;
-          }, 800);
-      }
-  } else {
-      // Step 2: Try to get HWID from Memory or URL
-      let hwid = urlParams.get('hwid') || hash || localStorage.getItem("TGL_HWID");
-      
-      if(hwid && hwid.length > 5) {
-          field.value = hwid;
-          field.style.display = "none";
-          status.innerText = "Key generated for your device:";
-          updateKey();
-      } else {
-          field.style.display = "block";
-          status.innerText = "Paste Device ID from Loader below:";
-      }
-  }
+  const field     = document.getElementById("hwid-field");
+  const status    = document.getElementById("status-text");
+  const copyBtn   = document.getElementById("copy-btn");
+  const copyIdBtn = document.getElementById("copy-id-btn");
+  const extendBtn = document.getElementById("extend-btn");
+  const renewBtn  = document.getElementById("renew-btn");
+  const timeText  = document.getElementById("time-remaining");
+  const keyBox    = document.getElementById("key-display");
 
-  function generateKey(id, offset = 0) {
-    const now = new Date();
-    const d = new Date(now.getTime() + (offset * 86400000));
-    const day = d.getUTCDate().toString();
-    const month = (d.getUTCMonth() + 1).toString();
-    const year = d.getUTCFullYear().toString();
-    const salt = "TGL_ULTIMATE_SECURITY_99";
-    const cleanId = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const BASE_VALID_SECONDS = 12 * 60 * 60; // 12 hour base window
+  const BONUS_SECONDS      = 6  * 60 * 60; // +6 hours per completed extension
+  const SALT = "TGL_ULTIMATE_SECURITY_99";
 
-    const seed = "DAY:" + day + "|MON:" + month + "|YR:" + year + "|ID:" + cleanId + "|SALT:" + salt;
-    
+  let countdownTimer = null;
+
+  function hashSeed(seed) {
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
         hash = (hash + seed.charCodeAt(i)) | 0;
         hash = (hash * 3) | 0;
         hash = Math.abs(hash % 9999999);
     }
-    return "TGL-" + hash;
+    return hash;
   }
 
-  function updateKey() {
-    const val = field.value;
-    if(val.length > 5) {
-        document.getElementById("key-display").innerText = generateKey(val, 0);
-        copyBtn.style.display = "inline-block";
+  // Key format: TGL-<hash>-<ts36>-<bonus36>
+  // ts    = unix seconds when this key's base 12h period started
+  // bonus = cumulative extra seconds from "+6 Hours" extensions
+  // The hash covers ts AND bonus, so neither can be hand-edited to fake
+  // more time without knowing the salt (same trust model as the base key).
+  function generateKey(id, ts, bonus) {
+    const cleanId = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    const seed = "TS:" + ts + "|ID:" + cleanId + "|BONUS:" + bonus + "|SALT:" + SALT;
+    return "TGL-" + hashSeed(seed) + "-" + ts.toString(36) + "-" + bonus.toString(36);
+  }
+
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem("TGL_KEY_STATE") || "null"); }
+    catch (e) { return null; }
+  }
+  function saveState(state) {
+    localStorage.setItem("TGL_KEY_STATE", JSON.stringify(state));
+  }
+  function remainingFor(state, now) {
+    return (state.ts + BASE_VALID_SECONDS + state.bonus) - now;
+  }
+
+  function formatHMS(totalSeconds) {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return h + ":" + m + ":" + sec;
+  }
+
+  function tickUI(state) {
+    const now = Math.floor(Date.now() / 1000);
+    const rem = remainingFor(state, now);
+    if (rem <= 0) {
+      timeText.innerText = "Key expired";
+      extendBtn.style.display = "none";
+      renewBtn.style.display = "inline-block";
+      copyBtn.style.display = "none";
+      if (countdownTimer) clearInterval(countdownTimer);
+    } else {
+      timeText.innerText = "Time left: " + formatHMS(rem);
+      extendBtn.style.display = "inline-block";
+      renewBtn.style.display = "none";
+      copyBtn.style.display = "inline-block";
     }
   }
 
+  function renderFromState(state) {
+    keyBox.innerText = generateKey(state.id, state.ts, state.bonus);
+    status.innerText = "Key generated for your device:";
+    if (countdownTimer) clearInterval(countdownTimer);
+    tickUI(state);
+    countdownTimer = setInterval(() => tickUI(state), 1000);
+  }
+
+  function getOrCreateStateFor(hwid) {
+    const now = Math.floor(Date.now() / 1000);
+    let state = loadState();
+    const stillValid = state && state.id === hwid && remainingFor(state, now) > 0;
+    if (!stillValid) {
+      state = { id: hwid, ts: now, bonus: 0 };
+      saveState(state);
+    }
+    return state;
+  }
+
+  function extendTime() {
+    const state = loadState();
+    const now = Math.floor(Date.now() / 1000);
+    if (!state || remainingFor(state, now) <= 0) return; // must renew instead
+    localStorage.setItem("TGL_EXT_PENDING", "1");
+    status.innerText = "Redirecting — complete the task again for +6 hours...";
+    setTimeout(() => { window.location.href = LINKVERT_URL; }, 600);
+  }
+
+  function renewKey() {
+    const hwid = field.value || localStorage.getItem("TGL_HWID");
+    if (!hwid || hwid.length <= 5) return;
+    const now = Math.floor(Date.now() / 1000);
+    const state = { id: hwid, ts: now, bonus: 0 };
+    saveState(state);
+    renderFromState(state);
+  }
+
   function copyKey() {
-    const key = document.getElementById("key-display").innerText;
-    navigator.clipboard.writeText(key).then(() => {
+    navigator.clipboard.writeText(keyBox.innerText).then(() => {
       alert("Key copied to clipboard!");
     });
+  }
+
+  function copyDeviceId() {
+    const val = field.value.trim();
+    if (val.length > 5) {
+      navigator.clipboard.writeText(val).then(() => {
+        copyIdBtn.innerText = "ID Copied!";
+        setTimeout(() => { copyIdBtn.innerText = "Copy Device ID"; }, 1200);
+      });
+    }
+  }
+
+  // Manual fallback entry: self-heals localStorage (so future visits/
+  // extensions auto-detect even if the automated SAVE: hop failed) and
+  // immediately generates/loads this device's key state.
+  function onManualIdInput() {
+    const val = field.value.trim();
+    if (val.length > 5) {
+      localStorage.setItem("TGL_HWID", val);
+      const state = getOrCreateStateFor(val);
+      renderFromState(state);
+    }
+  }
+
+  // ---------------- BOOT SEQUENCE ----------------
+  if (hash.startsWith("SAVE:")) {
+      // First-ever visit from the loader: store HWID, then go do the task.
+      const idToSave = hash.split(":")[1];
+      if (idToSave) {
+          localStorage.setItem("TGL_HWID", idToSave);
+          status.innerText = "Device Registered. Redirecting...";
+          setTimeout(() => { window.location.href = LINKVERT_URL; }, 800);
+      }
+  } else if (localStorage.getItem("TGL_EXT_PENDING") === "1") {
+      // Returning from Linkvertise after clicking "+6 Hours".
+      localStorage.removeItem("TGL_EXT_PENDING");
+      let state = loadState();
+      if (state) {
+          state.bonus = (state.bonus || 0) + BONUS_SECONDS;
+          saveState(state);
+          status.innerText = "+6 hours added!";
+          field.style.display = "none";
+          copyIdBtn.style.display = "none";
+          renderFromState(state);
+      } else {
+          field.style.display = "block";
+          copyIdBtn.style.display = "inline-block";
+          status.innerText = "Session lost — paste Device ID from Loader below:";
+      }
+  } else {
+      // Normal load: try URL param, hash, or saved HWID.
+      let hwid = urlParams.get('hwid') || hash || localStorage.getItem("TGL_HWID");
+      if (hwid && hwid.length > 5) {
+          field.value = hwid;
+          field.style.display = "none";
+          copyIdBtn.style.display = "none";
+          const state = getOrCreateStateFor(hwid);
+          renderFromState(state);
+      } else {
+          field.style.display = "block";
+          copyIdBtn.style.display = "inline-block";
+          status.innerText = "Paste Device ID from Loader below:";
+      }
   }
 </script>
 </body>
 </html>
-
-
